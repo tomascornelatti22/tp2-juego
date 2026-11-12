@@ -1,26 +1,22 @@
-export default function Header({ totalJuegos, totalCompletados }) {
+export default function Header({ totalJuegos, totalCompletados, onAbrirDrawer }) {
   return (
     <header className="main-header">
-      <div className="header-container">
-        <div className="logo-brand">
-          
-          <h1>GAMEBOXD</h1>
-        </div>
+      <div className="header-left">
+        <button 
+          className="btn-menu-drawer" 
+          onClick={onAbrirDrawer}
+          aria-label="Abrir formulario para agregar juego"
+        >
+          <span className="hamburger-icon">☰</span>
+          <span>+ Agregar Juego</span>
+        </button>
+        <h1 className="logo">GAMEBOXD</h1>
+      </div>
 
-        <div className="header-stats">
-          <div className="stat-pill">
-            <span className="stat-label">En Biblioteca:</span>
-            <strong className="stat-value">{totalJuegos}</strong>
-          </div>
-          <div className="stat-pill">
-            <span className="stat-label">Completados:</span>
-            <strong className="stat-value">{totalCompletados}</strong>
-          </div>
-          <div className="user-badge">
-            <span className="user-dot"></span>
-            <span>Online</span>
-          </div>
-        </div>
+      <div className="header-stats">
+        <span className="stat-pill">En Biblioteca: <strong>{totalJuegos}</strong></span>
+        <span className="stat-pill">Completados: <strong>{totalCompletados}</strong></span>
+        <span className="stat-pill online-badge">● Online</span>
       </div>
     </header>
   );

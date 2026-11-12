@@ -20,11 +20,10 @@ export default function App() {
   const [juegos, setJuegos] = useState([]);
   const [filtro, setFiltro] = useState("all");
   const [cargando, setCargando] = useState(true);
+  const [drawerAbierto, setDrawerAbierto] = useState(false);
 
-  // Iniciar sesión anónima y escuchar la colección en tiempo real
   useEffect(() => {
     iniciarSesionAnonima();
-
     const coleccionRef = collection(db, "juegos");
 
     const unsubscribe = onSnapshot(coleccionRef, (snapshot) => {
@@ -42,19 +41,38 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Guardar en la nube
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setDrawerAbierto(false);
+      }
+    };
+
+    if (drawerAbierto) {
+      window.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "auto";
+    };
+  }, [drawerAbierto]);
+
   const handleAgregarJuego = async (nuevoJuego) => {
     try {
       await addDoc(collection(db, "juegos"), {
         ...nuevoJuego,
         createdAt: serverTimestamp(),
       });
+      setDrawerAbierto(false);
     } catch (error) {
       console.error("Error al guardar en Firebase:", error);
     }
   };
 
-  // Cambiar estado en la nube
   const handleCambiarEstado = async (id, nuevoEstado) => {
     try {
       const docRef = doc(db, "juegos", id);
@@ -64,7 +82,6 @@ export default function App() {
     }
   };
 
-  // Editar reseña / rating en la nube
   const handleActualizarCard = async (id, datosActualizados) => {
     try {
       const docRef = doc(db, "juegos", id);
@@ -74,7 +91,6 @@ export default function App() {
     }
   };
 
-  // Borrar de la nube
   const handleEliminar = async (id) => {
     try {
       await deleteDoc(doc(db, "juegos", id));
@@ -93,14 +109,36 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Header totalJuegos={totalJuegos} totalCompletados={totalCompletados} />
+      <Header 
+        totalJuegos={totalJuegos} 
+        totalCompletados={totalCompletados} 
+        onAbrirDrawer={() => setDrawerAbierto(true)}
+      />
+
+      {drawerAbierto && (
+        <div 
+          className="drawer-overlay" 
+          onClick={() => setDrawerAbierto(false)}
+        />
+      )}
+
+      <aside className={`drawer-sidebar ${drawerAbierto ? "open" : ""}`}>
+        <div className="drawer-header">
+          <span className="drawer-title">Nuevo Registro</span>
+          <button 
+            className="btn-close-drawer" 
+            onClick={() => setDrawerAbierto(false)}
+            aria-label="Cerrar panel"
+            title="Cerrar (Esc)"
+          >
+            ✕
+          </button>
+        </div>
+        <GameForm onAgregarJuego={handleAgregarJuego} />
+      </aside>
 
       <div className="container">
-        <main className="layout">
-          <aside className="sidebar">
-            <GameForm onAgregarJuego={handleAgregarJuego} />
-          </aside>
-
+        <main className="layout-full">
           <section className="content">
             <div className="filters">
               <button className={filtro === "all" ? "active" : ""} onClick={() => setFiltro("all")}>
@@ -122,15 +160,20 @@ export default function App() {
             ) : juegosFiltrados.length === 0 ? (
               <p className="empty-text">No hay juegos en esta sección.</p>
             ) : (
-              <div className="games-grid">
-                {juegosFiltrados.map((juego) => (
-                  <GameCard
-                    key={juego.id}
-                    juego={juego}
-                    onCambiarEstado={handleCambiarEstado}
-                    onEliminar={handleEliminar}
-                    onActualizarCard={handleActualizarCard}
-                  />
+              <div className="games-grid" key={filtro}>
+                {juegosFiltrados.map((juego, index) => (
+                  <div 
+                    key={juego.id} 
+                    className="card-animate-wrapper"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    <GameCard
+                      juego={juego}
+                      onCambiarEstado={handleCambiarEstado}
+                      onEliminar={handleEliminar}
+                      onActualizarCard={handleActualizarCard}
+                    />
+                  </div>
                 ))}
               </div>
             )}

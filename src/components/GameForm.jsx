@@ -1,180 +1,230 @@
-import { useState } from "react";
-import GameSearchModal from "./GameSearchModal";
+import { useState, useEffect, useRef } from "react";
 
 export default function GameForm({ onAgregarJuego }) {
-  const [formData, setFormData] = useState({
-    title: "",
-    platform: "PC",
-    coverUrl: "",
-    status: "pending",
-    rating: 0,
-    review: "",
-  });
-
+  const [title, setTitle] = useState("");
+  const [platform, setPlatform] = useState("PC");
+  const [status, setStatus] = useState("backlog");
+  const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [mostrarModal, setMostrarModal] = useState(false);
+  const [coverUrl, setCoverUrl] = useState("");
+  const [review, setReview] = useState("");
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const [sugerencias, setSugerencias] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [mostrarDropdown, setMostrarDropdown] = useState(false);
+  const [juegoSeleccionado, setJuegoSeleccionado] = useState(false);
+
+  const searchContainerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+        setMostrarDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (juegoSeleccionado) return;
+
+    const query = title.trim();
+    if (query.length < 2) {
+      setSugerencias([]);
+      setMostrarDropdown(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setBuscando(true);
+      try {
+        const res = await fetch(
+          `https://www.cheapshark.com/api/1.0/games?title=${encodeURIComponent(query)}&limit=6`
+        );
+        const data = await res.json();
+        setSugerencias(data || []);
+        setMostrarDropdown(true);
+      } catch (error) {
+        console.error("Error buscando en CheapShark:", error);
+      } finally {
+        setBuscando(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [title, juegoSeleccionado]);
+
+  const handleInputChange = (e) => {
+    setTitle(e.target.value);
+    setJuegoSeleccionado(false);
   };
 
-  const handleRatingClick = (puntos) => {
-    setFormData((prev) => ({
-      ...prev,
-      rating: prev.rating === puntos ? 0 : puntos,
-    }));
-  };
-
-  const handleSeleccionApi = (juegoSeleccionado) => {
-    setFormData((prev) => ({
-      ...prev,
-      title: juegoSeleccionado.title,
-      coverUrl: juegoSeleccionado.coverUrl,
-      platform: juegoSeleccionado.platform?.includes("PlayStation")
-        ? "PlayStation"
-        : juegoSeleccionado.platform?.includes("Xbox")
-        ? "Xbox"
-        : juegoSeleccionado.platform?.includes("Nintendo")
-        ? "Nintendo Switch"
-        : "PC",
-    }));
+  const handleSeleccionarJuego = (juego) => {
+    setJuegoSeleccionado(true);
+    setTitle(juego.external);
+    const hdCover = juego.steamAppID
+      ? `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${juego.steamAppID}/library_600x900.jpg`
+      : juego.thumb;
+    setCoverUrl(hdCover || "");
+    setMostrarDropdown(false);
+    setSugerencias([]);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.title.trim()) {
-      alert("El título del videojuego es obligatorio.");
-      return;
-    }
+    if (!title.trim()) return;
 
-    const imagenFinal = formData.coverUrl.trim()
-      ? formData.coverUrl
-      : "https://placehold.co/300x400/1e293b/ffffff?text=Sin+Portada";
-
-    onAgregarJuego({ ...formData, coverUrl: imagenFinal });
-
-    setFormData({
-      title: "",
-      platform: "PC",
-      coverUrl: "",
-      status: "pending",
-      rating: 0,
-      review: "",
+    onAgregarJuego({
+      title: title.trim(),
+      platform,
+      status,
+      rating,
+      coverUrl:
+        coverUrl.trim() ||
+        "https://placehold.co/400x600/1e293b/94a3b8?text=Sin+Portada",
+      review: review.trim(),
     });
-    setHoverRating(0);
+
+    setTitle("");
+    setPlatform("PC");
+    setStatus("backlog");
+    setRating(0);
+    setCoverUrl("");
+    setReview("");
+    setSugerencias([]);
+    setMostrarDropdown(false);
+    setJuegoSeleccionado(false);
   };
 
   return (
-    <>
-      <form className="game-form" onSubmit={handleSubmit}>
-        <div className="form-header-row">
-          <h3>Agregar Videojuego</h3>
-          <button
-            type="button"
-            className="btn-search-api"
-            onClick={() => setMostrarModal(true)}
-          >
-            Buscar
-          </button>
-        </div>
+    <form className="game-form" onSubmit={handleSubmit}>
+      <div className="form-header-clean">
+        <h2>Agregar Videojuego</h2>
+      </div>
 
-        <div className="form-group">
-          <label>Título:</label>
+      <div className="form-group autocomplete-wrapper" ref={searchContainerRef}>
+        <label htmlFor="game-title">Título:</label>
+        <div className="search-input-container">
           <input
+            id="game-title"
             type="text"
-            name="title"
-            value={formData.title}
-            onChange={handleChange}
-            placeholder="Ej. Elden Ring"
+            placeholder="Escribí para buscar (ej. Elden Ring)..."
+            value={title}
+            onChange={handleInputChange}
+            onFocus={() => {
+              if (sugerencias.length > 0 && !juegoSeleccionado) {
+                setMostrarDropdown(true);
+              }
+            }}
+            autoComplete="off"
             required
           />
+          <span className="search-status-icon">
+            {buscando ? <span className="spinner-mini" /> : "🔍"}
+          </span>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label>Plataforma:</label>
-            <select name="platform" value={formData.platform} onChange={handleChange}>
-              <option value="PC">PC</option>
-              <option value="PlayStation">PlayStation</option>
-              <option value="Xbox">Xbox</option>
-              <option value="Nintendo Switch">Nintendo Switch</option>
-              <option value="Otro">Otro</option>
-            </select>
-          </div>
+        {mostrarDropdown && (
+          <ul className="autocomplete-dropdown">
+            {sugerencias.length === 0 && !buscando ? (
+              <li className="autocomplete-empty">
+                No se encontraron resultados. Podés agregarlo manualmente.
+              </li>
+            ) : (
+              sugerencias.map((item) => (
+                <li
+                  key={item.gameID}
+                  className="autocomplete-item"
+                  onClick={() => handleSeleccionarJuego(item)}
+                >
+                  <img
+                    src={item.thumb}
+                    alt={item.external}
+                    className="autocomplete-thumb"
+                  />
+                  <span className="autocomplete-name">{item.external}</span>
+                </li>
+              ))
+            )}
+          </ul>
+        )}
+      </div>
 
-          <div className="form-group">
-            <label>Estado:</label>
-            <select name="status" value={formData.status} onChange={handleChange}>
-              <option value="backlog">Pendiente</option>
-              <option value="playing">Jugando</option>
-              <option value="completed">Completado</option>
-              <option value="abandoned">Abandonado</option>
-            </select>
-          </div>
+      <div className="form-group">
+        <label htmlFor="game-platform">Plataforma:</label>
+        <select
+          id="game-platform"
+          value={platform}
+          onChange={(e) => setPlatform(e.target.value)}
+        >
+          <option value="PC">PC</option>
+          <option value="PlayStation 5">PlayStation 5</option>
+          <option value="PlayStation 4">PlayStation 4</option>
+          <option value="Xbox Series X/S">Xbox Series X/S</option>
+          <option value="Nintendo Switch">Nintendo Switch</option>
+        </select>
+      </div>
 
-          {/* Selector interactivo de estrellas */}
-          <div className="form-group rating-form-group">
-            <label>Puntaje ({formData.rating} de 5):</label>
-            <div 
-              className="star-rating-input"
+      <div className="form-group">
+        <label htmlFor="game-status">Estado:</label>
+        <select
+          id="game-status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="backlog">Pendiente</option>
+          <option value="playing">Jugando</option>
+          <option value="completed">Completado</option>
+        </select>
+      </div>
+
+      <div className="form-group">
+        <label>Puntaje ({rating} de 5):</label>
+        <div className="star-rating-input">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              type="button"
+              key={star}
+              className={`star-btn ${
+                star <= (hoverRating || rating) ? "filled" : ""
+              }`}
+              onClick={() => setRating(star)}
+              onMouseEnter={() => setHoverRating(star)}
               onMouseLeave={() => setHoverRating(0)}
+              aria-label={`${star} estrellas`}
             >
-              {[1, 2, 3, 4, 5].map((estrella) => {
-                const activa = estrella <= (hoverRating || formData.rating);
-                return (
-                  <button
-                    key={estrella}
-                    type="button"
-                    className={`star-btn ${activa ? "star-active" : "star-inactive"}`}
-                    onClick={() => handleRatingClick(estrella)}
-                    onMouseEnter={() => setHoverRating(estrella)}
-                    aria-label={`${estrella} estrellas`}
-                  >
-                    ★
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+              ★
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div className="form-group">
-          <label>URL de Portada:</label>
-          <input
-            type="url"
-            name="coverUrl"
-            value={formData.coverUrl}
-            onChange={handleChange}
-            placeholder="Auto-completada por la API o manual..."
-          />
-        </div>
-
-        <div className="form-group">
-          <label>Reseña:</label>
-          <textarea
-            name="review"
-            value={formData.review}
-            onChange={handleChange}
-            placeholder="¿Qué te pareció el juego?"
-            rows="3"
-          />
-        </div>
-
-        <button type="submit" className="btn-submit">
-          Agregar a mi Colección
-        </button>
-      </form>
-
-      {mostrarModal && (
-        <GameSearchModal
-          onSeleccionarJuego={handleSeleccionApi}
-          onCerrar={() => setMostrarModal(false)}
+      <div className="form-group">
+        <label htmlFor="game-cover">URL de Portada:</label>
+        <input
+          id="game-cover"
+          type="url"
+          placeholder="Auto-completada por la API o manual..."
+          value={coverUrl}
+          onChange={(e) => setCoverUrl(e.target.value)}
         />
-      )}
-    </>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="game-review">Reseña:</label>
+        <textarea
+          id="game-review"
+          rows="3"
+          placeholder="¿Qué te pareció el juego?"
+          value={review}
+          onChange={(e) => setReview(e.target.value)}
+        />
+      </div>
+
+      <button type="submit" className="btn-submit">
+        Agregar a mi Colección
+      </button>
+    </form>
   );
 }
