@@ -7,7 +7,7 @@ export default function Header({ totalJuegos, totalCompletados, onAbrirDrawer })
           onClick={onAbrirDrawer}
           aria-label="Abrir formulario para agregar juego"
         >
-          <span className="hamburger-icon">☰</span>
+          
           <span>+ Agregar Juego</span>
         </button>
         <h1 className="logo">GAMEBOXD</h1>
