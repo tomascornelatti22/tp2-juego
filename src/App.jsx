@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { db, iniciarSesionAnonima } from "./firebase";
+import { db, auth, iniciarSesionAnonima } from "./firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import { 
   collection, 
   onSnapshot, 
@@ -7,7 +8,9 @@ import {
   updateDoc, 
   deleteDoc, 
   doc, 
-  serverTimestamp 
+  serverTimestamp,
+  query,
+  where
 } from "firebase/firestore";
 
 import GameForm from "./components/GameForm";
@@ -21,26 +24,55 @@ export default function App() {
   const [filtro, setFiltro] = useState("all");
   const [cargando, setCargando] = useState(true);
   const [drawerAbierto, setDrawerAbierto] = useState(false);
+  const [usuario, setUsuario] = useState(null);
 
+  // 1. Iniciar sesión anónima y detectar el UID del usuario actual
   useEffect(() => {
-    iniciarSesionAnonima();
-    const coleccionRef = collection(db, "juegos");
-
-    const unsubscribe = onSnapshot(coleccionRef, (snapshot) => {
-      const listaJuegos = snapshot.docs.map((documento) => ({
-        id: documento.id,
-        ...documento.data(),
-      }));
-      setJuegos(listaJuegos);
-      setCargando(false);
-    }, (error) => {
-      console.error("Error al obtener datos de Firestore:", error);
-      setCargando(false);
+    iniciarSesionAnonima().catch((error) => {
+      console.error("Error en autenticación anónima:", error);
     });
 
-    return () => unsubscribe();
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      setUsuario(user);
+      if (!user) {
+        setJuegos([]);
+        setCargando(false);
+      }
+    });
+
+    return () => unsubscribeAuth();
   }, []);
 
+  // 2. Escuchar SOLO los juegos que pertenecen al UID de este usuario
+  useEffect(() => {
+    if (!usuario) return;
+
+    const coleccionRef = collection(db, "juegos");
+    const consultaUsuario = query(
+      coleccionRef,
+      where("userId", "==", usuario.uid)
+    );
+
+    const unsubscribeFirestore = onSnapshot(
+      consultaUsuario,
+      (snapshot) => {
+        const listaJuegos = snapshot.docs.map((documento) => ({
+          id: documento.id,
+          ...documento.data(),
+        }));
+        setJuegos(listaJuegos);
+        setCargando(false);
+      },
+      (error) => {
+        console.error("Error al obtener datos de Firestore:", error);
+        setCargando(false);
+      }
+    );
+
+    return () => unsubscribeFirestore();
+  }, [usuario]);
+
+  // Cerrar el menú lateral con Escape y bloquear scroll
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
@@ -61,10 +93,13 @@ export default function App() {
     };
   }, [drawerAbierto]);
 
+  // 3. Guardar cada juego nuevo vinculado al UID del usuario
   const handleAgregarJuego = async (nuevoJuego) => {
+    if (!usuario) return;
     try {
       await addDoc(collection(db, "juegos"), {
         ...nuevoJuego,
+        userId: usuario.uid,
         createdAt: serverTimestamp(),
       });
       setDrawerAbierto(false);

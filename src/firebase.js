@@ -11,19 +11,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
-
-// Exportar instancias de servicios
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 
-// Función para autenticación anónima
-export const iniciarSesionAnonima = async () => {
-  try {
-    const userCredential = await signInAnonymously(auth);
-    return userCredential.user;
-  } catch (error) {
-    console.error("Error en autenticación anónima:", error);
-  }
+export const iniciarSesionAnonima = () => {
+  return signInAnonymously(auth);
 };
