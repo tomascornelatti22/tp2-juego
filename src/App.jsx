@@ -175,23 +175,82 @@ export default function App() {
       <div className="container">
         <main className="layout-full">
           <section className="content">
-            <div className="filters">
-              <button className={filtro === "all" ? "active" : ""} onClick={() => setFiltro("all")}>
-                Todos ({juegos.length})
-              </button>
-              <button className={filtro === "playing" ? "active" : ""} onClick={() => setFiltro("playing")}>
-                Jugando
-              </button>
-              <button className={filtro === "completed" ? "active" : ""} onClick={() => setFiltro("completed")}>
-                Completados
-              </button>
-              <button className={filtro === "backlog" ? "active" : ""} onClick={() => setFiltro("backlog")}>
-                Pendientes
-              </button>
-            </div>
+            {!cargando && juegos.length > 0 && (
+              <div className="filters">
+                <button className={filtro === "all" ? "active" : ""} onClick={() => setFiltro("all")}>
+                  Todos ({juegos.length})
+                </button>
+                <button className={filtro === "playing" ? "active" : ""} onClick={() => setFiltro("playing")}>
+                  Jugando
+                </button>
+                <button className={filtro === "completed" ? "active" : ""} onClick={() => setFiltro("completed")}>
+                  Completados
+                </button>
+                <button className={filtro === "backlog" ? "active" : ""} onClick={() => setFiltro("backlog")}>
+                  Pendientes
+                </button>
+              </div>
+            )}
 
             {cargando ? (
               <p className="empty-text">Cargando biblioteca desde la nube...</p>
+            ) : juegos.length === 0 ? (
+              <section className="welcome-hero">
+                <div className="welcome-posters">
+                  <div className="poster-card poster-left">
+                    <img
+                      src="https://images.igdb.com/igdb/image/upload/t_cover_big/co1r7x.webp"
+                      alt="The Witcher 3"
+                    />
+                  </div>
+                  <div className="poster-card poster-center">
+                    <img
+                      src="https://images.igdb.com/igdb/image/upload/t_cover_big/co4jni.webp"
+                      alt="Elden Ring"
+                    />
+                  </div>
+                  <div className="poster-card poster-right">
+                    <img
+                      src="https://images.igdb.com/igdb/image/upload/t_cover_big/co1tmu.webp"
+                      alt="Red Dead Redemption 2"
+                    />
+                  </div>
+                </div>
+
+                <div className="welcome-content">
+                  <span className="welcome-kicker">// TU BIBLIOTECA PERSONAL EN LA NUBE</span>
+                  <h2 className="welcome-title">
+                    Registrá lo que jugás. <br />
+                    <span>Puntuá cada partida.</span>
+                  </h2>
+                  <p className="welcome-subtitle">
+                    Armá tu historial de videojuegos, organizá tus pendientes y guardá tus reseñas
+                    en un espacio privado sincronizado automáticamente con tu sesión.
+                  </p>
+
+                  <div className="welcome-actions">
+                    <button
+                      type="button"
+                      className="btn-hero-cta"
+                      onClick={() => setDrawerAbierto(true)}
+                    >
+                      + Cargar mi primer juego
+                    </button>
+                  </div>
+
+                  <div className="welcome-features">
+                    <div className="feature-chip">
+                      <strong>01.</strong> Buscador conectado a CheapShark
+                    </div>
+                    <div className="feature-chip">
+                      <strong>02.</strong> Estados: Jugando, Completado y Pendiente
+                    </div>
+                    <div className="feature-chip">
+                      <strong>03.</strong> Biblioteca privada por usuario
+                    </div>
+                  </div>
+                </div>
+              </section>
             ) : juegosFiltrados.length === 0 ? (
               <p className="empty-text">No hay juegos en esta sección.</p>
             ) : (
