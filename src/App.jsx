@@ -25,11 +25,18 @@ export default function App() {
   const [cargando, setCargando] = useState(true);
   const [drawerAbierto, setDrawerAbierto] = useState(false);
   const [usuario, setUsuario] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const mostrarError = (mensaje) => {
+    setErrorMsg(mensaje);
+    setTimeout(() => setErrorMsg(""), 5000);
+  };
 
   // 1. Iniciar sesión anónima y detectar el UID del usuario actual
   useEffect(() => {
     iniciarSesionAnonima().catch((error) => {
       console.error("Error en autenticación anónima:", error);
+      mostrarError("No se pudo iniciar la sesión en la nube. Verificá tu conexión.");
     });
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
@@ -65,6 +72,7 @@ export default function App() {
       },
       (error) => {
         console.error("Error al obtener datos de Firestore:", error);
+        mostrarError("Error al cargar tu biblioteca desde Firestore.");
         setCargando(false);
       }
     );
@@ -95,7 +103,10 @@ export default function App() {
 
   // 3. Guardar cada juego nuevo vinculado al UID del usuario
   const handleAgregarJuego = async (nuevoJuego) => {
-    if (!usuario) return;
+    if (!usuario) {
+      mostrarError("Sesión no iniciada. Recargá la página e intentá de nuevo.");
+      return;
+    }
     try {
       await addDoc(collection(db, "juegos"), {
         ...nuevoJuego,
@@ -105,6 +116,7 @@ export default function App() {
       setDrawerAbierto(false);
     } catch (error) {
       console.error("Error al guardar en Firebase:", error);
+      mostrarError("Error al guardar el juego en la base de datos.");
     }
   };
 
@@ -114,6 +126,7 @@ export default function App() {
       await updateDoc(docRef, { status: nuevoEstado });
     } catch (error) {
       console.error("Error al actualizar el estado:", error);
+      mostrarError("No se pudo actualizar el estado del juego.");
     }
   };
 
@@ -123,6 +136,7 @@ export default function App() {
       await updateDoc(docRef, datosActualizados);
     } catch (error) {
       console.error("Error al actualizar la tarjeta:", error);
+      mostrarError("No se pudieron guardar los cambios de la tarjeta.");
     }
   };
 
@@ -131,6 +145,7 @@ export default function App() {
       await deleteDoc(doc(db, "juegos", id));
     } catch (error) {
       console.error("Error al eliminar de Firebase:", error);
+      mostrarError("Error al eliminar el juego de la colección.");
     }
   };
 
@@ -149,6 +164,13 @@ export default function App() {
         totalCompletados={totalCompletados} 
         onAbrirDrawer={() => setDrawerAbierto(true)}
       />
+
+      {errorMsg && (
+        <div className="error-toast" role="alert">
+          <span>⚠️ {errorMsg}</span>
+          <button onClick={() => setErrorMsg("")} aria-label="Cerrar aviso">✕</button>
+        </div>
+      )}
 
       {drawerAbierto && (
         <div 
